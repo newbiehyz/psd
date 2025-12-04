@@ -1,0 +1,9 @@
+{
+    "process_name": "psd",
+    "Log_Level": "Debug",
+    "log_modes": ["File","Console"],
+    "logtrace_file_path": "./",
+    "maxLogSize": 10240,
+    "maxLogFiles":5,
+    "maxQueueSize":100
+}
