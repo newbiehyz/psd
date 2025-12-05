@@ -106,7 +106,7 @@ struct Header {
 enum class ApaStatus : uint8_t {
     Off = 0,
     Standby = 1,
-    Searching = 2,
+    Search = 2,
     ParkOut = 3,
     Enabled = 4,
     Guidance = 5,
@@ -128,9 +128,9 @@ enum class SlotType : uint8_t {
     Null = 0,
     Parallel = 1,
     Perpendicular = 2,
-    Diagonal = 3,
-    Oblique = 4,
-    ReverseOblique = 5
+    Oblique = 3,
+    ReverseOblique = 4,
+    UserDefined = 5
 };
 
 enum class SlotSource : uint8_t {
@@ -138,7 +138,6 @@ enum class SlotSource : uint8_t {
     Vision = 1,
     Ultrasonic = 2,
     Fused = 3,
-    Map = 4
 };
 
 enum class SlotOccupancyStatus : uint8_t {
@@ -257,7 +256,7 @@ struct StateMachineInput {
     
     /// Check if searching
     bool isSearching() const {
-        return apaStatusReq == static_cast<uint8_t>(ApaStatus::Searching);
+        return apaStatusReq == static_cast<uint8_t>(ApaStatus::Search);
     }
     
     /// Check if in guidance phase
@@ -723,17 +722,17 @@ struct InternalSlot {
     InSlotObstacleLocation obstacleLocation = InSlotObstacleLocation::None;
     
     // Slot dimensions
-    float entryLength = 0.0f;       // Entry side length
-    float nonEntryLength = 0.0f;    // Non-entry side length (depth)
-    float oppositeSpace = 0.0f;     // Space on opposite side
-    float transverseSpace = 0.0f;   // Transverse space
+    float entryLength = 0.0f;
+    float nonEntryLength = 0.0f;
+    float oppositeSpace = 0.0f;
+    float transverseSpace = 0.0f;
     
     // Processing flags
     bool isTargetSlot = false;
     bool isSelected = false;
     bool isRecommended = false;
     bool isParkable = false;
-    bool needsRelease = true;       // Should release to output
+    bool needsRelease = true;
     
     // Quality metrics
     float confidence = 0.0f;

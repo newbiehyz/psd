@@ -5,6 +5,8 @@
 
 #include "DataType.h"
 #include "include/psd_input_converter.h"
+#include "include/psd_slot_fusion.h"
+#include "include/psd_output_converter.h"
 
 namespace patac {
 namespace psd {
@@ -68,8 +70,12 @@ class PsdFusionProcess {
   bool Reset();
 
 private:
-    PsdFusionInput cached_input_;
-    PsdFusionOutput cached_output_;
+  bool is_initialized_ = false;
+
+  PsdFusionInput cached_input_;
+  PsdFusionOutput cached_output_;
+
+  PsdSlotFusion slot_fusion_;
 };
 
 }  // namespace psd
