@@ -71,13 +71,13 @@ void PsdSlotFusion::Process(
     slot_list.clear();
 
     // Step 1: Clear data based on APA status
-    ProcClearByStatus(input, slot_list);
+    ResetByStatus(input, slot_list);
 
     // Step 2: Convert mapinfo slots to internal format
-    ProcConvertMapSlots(input, slot_list);
+    ConvertMapInfo(input, slot_list);
 
     // // Step 3: Convert and merge USS slots（ TODO: not available, and waiting for input)
-    // ProcConvertUssSlots(input, slot_list);
+    // ConvertUssSlots(input, slot_list);
 
     // Step 4: Process obstacles
     ProcObstacles(input, slot_list);
@@ -89,7 +89,7 @@ void PsdSlotFusion::Process(
     ProcUpdateDisplayStatus(input, slot_list);
 
     // Step 7: Convert to output format
-    ProcConvertToOutput(input, slot_list, output);
+    ConvertToOutput(input, slot_list, output);
 
     // Update status tracking
     last_apa_status_ = current_status;
@@ -114,7 +114,7 @@ void PsdSlotFusion::UpdateCustomSlot(const CustomSlotInput& custom_slot) {
 // Processing Steps Implementation
 //=============================================================================
 
-void PsdSlotFusion::ProcClearByStatus(const PsdFusionInput& input, InternalSlotList& slot_list)
+void PsdSlotFusion::ResetByStatus(const PsdFusionInput& input, InternalSlotList& slot_list)
 {
     uint8_t status = input.stateMachine.apaStatusReq;
     
@@ -139,7 +139,7 @@ void PsdSlotFusion::ProcClearByStatus(const PsdFusionInput& input, InternalSlotL
     }
 }
 
-void PsdSlotFusion::ProcConvertMapSlots(const PsdFusionInput& input, InternalSlotList& slot_list)
+void PsdSlotFusion::ConvertMapInfo(const PsdFusionInput& input, InternalSlotList& slot_list)
 {
     const auto& pose = input.vehiclePose;
     float theta = pose.yaw * static_cast<float>(M_PI) / 180.0f;
@@ -202,7 +202,7 @@ void PsdSlotFusion::ProcConvertMapSlots(const PsdFusionInput& input, InternalSlo
     }
 }
 
-void PsdSlotFusion::ProcConvertUssSlots(const PsdFusionInput& input, InternalSlotList& slot_list)
+void PsdSlotFusion::ConvertUssSlots(const PsdFusionInput& input, InternalSlotList& slot_list)
 {
     // Process USS slots - merge with existing vision/map slots
     for (size_t i = 0; i < Limits::kMaxUssSlots; ++i) {
@@ -674,7 +674,7 @@ void PsdSlotFusion::ProcUpdateDisplayStatus(
     }
 }
 
-void PsdSlotFusion::ProcConvertToOutput(
+void PsdSlotFusion::ConvertToOutput(
     const PsdFusionInput& input,
     const InternalSlotList& slot_list,
     PsdFusionOutput& output)

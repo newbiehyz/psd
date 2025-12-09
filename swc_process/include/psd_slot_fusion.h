@@ -25,17 +25,17 @@ private:
     //=========================================================================
     
     /// Step 1: Clear data based on APA status
-    void ProcClearByStatus(
+    void ResetByStatus(
         const PsdFusionInput& input,
         InternalSlotList& slot_list);
 
     /// Step 2: Convert map parking slots to internal slots
-    void ProcConvertMapSlots(
+    void ConvertMapInfo(
         const PsdFusionInput& input,
         InternalSlotList& slot_list);
 
     /// Step 3: Convert USS slots to internal slots and merge
-    void ProcConvertUssSlots(
+    void ConvertUssSlots(
         const PsdFusionInput& input,
         InternalSlotList& slot_list);
 
@@ -55,7 +55,7 @@ private:
         InternalSlotList& slot_list);
 
     /// Step 7: Convert internal slots to output format
-    void ProcConvertToOutput(
+    void ConvertToOutput(
         const PsdFusionInput& input,
         const InternalSlotList& slot_list,
         PsdFusionOutput& output);
