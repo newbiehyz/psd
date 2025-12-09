@@ -799,46 +799,142 @@ Point2f PsdSlotFusion::TransformWorldToBody(
 }
 
 void PsdSlotFusion::AdjustCornerOrder(SlotCorners& corners) {
-    // Order: A closest to vehicle origin, B next on entry edge
-    // Step 1: Find point closest to origin (0,0) among first two points
-    float dist0 = corners[0].x * corners[0].x + corners[0].y * corners[0].y;
-    float dist1 = corners[1].x * corners[1].x + corners[1].y * corners[1].y;
-    
-    int idx_A = 0, idx_B = 1;
-    if (dist1 < dist0) {
-        idx_A = 1;
-        idx_B = 0;
-    }
-    
-    // Step 2: Find remaining two points (C and D)
-    int idx_CD[2];
-    int cd_count = 0;
+    // ------- 工具函数 --------
+    auto signed_area = [&](int i0, int i1, int i2, int i3) -> float {
+        const Point2f* p[4] = {
+            &corners[i0],
+            &corners[i1],
+            &corners[i2],
+            &corners[i3]
+        };
+        float area2 = 0.0f;
+        for (int i = 0; i < 4; ++i) {
+            const Point2f& a = *p[i];
+            const Point2f& b = *p[(i + 1) & 3];
+            area2 += a.x * b.y - b.x * a.y;
+        }
+        return area2; // >0 逆时针, <0 顺时针
+    };
+
+    auto cross = [](const Point2f& a, const Point2f& b, const Point2f& c) -> float {
+        // (b - a) x (c - a)
+        return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    };
+
+    auto segments_intersect = [&](const Point2f& p1,
+                                  const Point2f& p2,
+                                  const Point2f& p3,
+                                  const Point2f& p4) -> bool {
+        auto o1 = cross(p1, p2, p3);
+        auto o2 = cross(p1, p2, p4);
+        auto o3 = cross(p3, p4, p1);
+        auto o4 = cross(p3, p4, p2);
+        // 只关心“严格相交”（不是共线重叠那种）
+        return (o1 * o2 < 0.0f) && (o3 * o4 < 0.0f);
+    };
+
+    auto is_hourglass = [&](int i0, int i1, int i2, int i3) -> bool {
+        const Point2f& A = corners[i0];
+        const Point2f& B = corners[i1];
+        const Point2f& C = corners[i2];
+        const Point2f& D = corners[i3];
+        // 沙漏：非相邻边相交
+        if (segments_intersect(A, B, C, D)) return true;
+        if (segments_intersect(B, C, D, A)) return true;
+        return false;
+    };
+
+    // ------- 判断车位在左还是右 -------
+    float avg_y = 0.0f;
     for (int i = 0; i < 4; ++i) {
-        if (i != idx_A && i != idx_B) {
-            idx_CD[cd_count++] = i;
+        avg_y += corners[i].y;
+    }
+    avg_y *= 0.25f;
+
+    enum class SlotSide {
+        UNKNOWN,
+        LEFT,
+        RIGHT
+    };
+
+    SlotSide side = SlotSide::UNKNOWN;
+    const float kSideEps = 1e-3f;
+    if (avg_y > kSideEps) {
+        side = SlotSide::LEFT;   // 左侧车位 -> 逆时针
+    } else if (avg_y < -kSideEps) {
+        side = SlotSide::RIGHT;  // 右侧车位 -> 顺时针
+    } else {
+        side = SlotSide::UNKNOWN;
+    }
+
+    // ------- 枚举 4 种候选顺序 -------
+    struct Candidate { int idx[4]; };
+
+    Candidate candidates[4] = {
+        {{0, 1, 2, 3}}, // A=0,B=1,C=2,D=3
+        {{0, 1, 3, 2}}, // A=0,B=1,C=3,D=2
+        {{1, 0, 2, 3}}, // A=1,B=0,C=2,D=3
+        {{1, 0, 3, 2}}  // A=1,B=0,C=3,D=2
+    };
+
+    int best = 0;
+    bool have_non_hourglass = false;
+    bool have_dir_match = false;
+
+    const float kAreaEps = 1e-5f;
+
+    for (int i = 0; i < 4; ++i) {
+        int i0 = candidates[i].idx[0];
+        int i1 = candidates[i].idx[1];
+        int i2 = candidates[i].idx[2];
+        int i3 = candidates[i].idx[3];
+
+        // 先剔除“沙漏”形状
+        if (is_hourglass(i0, i1, i2, i3)) {
+            continue;
+        }
+
+        if (!have_non_hourglass) {
+            best = i;
+            have_non_hourglass = true;
+        }
+
+        float area2 = signed_area(i0, i1, i2, i3);
+        if (std::fabs(area2) < kAreaEps) {
+            continue;
+        }
+
+        bool dir_ok = false;
+        if (side == SlotSide::LEFT && area2 > 0.0f) {
+            // 左侧车位 -> 逆时针
+            dir_ok = true;
+        } else if (side == SlotSide::RIGHT && area2 < 0.0f) {
+            // 右侧车位 -> 顺时针
+            dir_ok = true;
+        } else if (side == SlotSide::UNKNOWN) {
+            // 不知道左右，就不强制方向
+            dir_ok = true;
+        }
+
+        if (dir_ok) {
+            best = i;
+            have_dir_match = true;
+            if (side != SlotSide::UNKNOWN) {
+                // 已经找到满足方向的合法四边形，可以提前结束
+                break;
+            }
         }
     }
-    
-    // Step 3: C is closer to B
-    float dx0 = corners[idx_B].x - corners[idx_CD[0]].x;
-    float dy0 = corners[idx_B].y - corners[idx_CD[0]].y;
-    float dx1 = corners[idx_B].x - corners[idx_CD[1]].x;
-    float dy1 = corners[idx_B].y - corners[idx_CD[1]].y;
-    float dist_BC0 = dx0 * dx0 + dy0 * dy0;
-    float dist_BC1 = dx1 * dx1 + dy1 * dy1;
-    
-    int idx_C = idx_CD[0], idx_D = idx_CD[1];
-    if (dist_BC1 < dist_BC0) {
-        idx_C = idx_CD[1];
-        idx_D = idx_CD[0];
-    }
-    
-    // Reorder
+
+    // 如果连一个非沙漏的都没有（极端退化情况），退回第一个候选
+    const Candidate& chosen = candidates[best];
+
+    // ------- 重新赋值 ABCD -------
     SlotCorners temp = corners;
-    corners[0] = temp[idx_A];
-    corners[1] = temp[idx_B];
-    corners[2] = temp[idx_C];
-    corners[3] = temp[idx_D];
+    corners[0] = temp[chosen.idx[0]]; // A：开口边
+    corners[1] = temp[chosen.idx[1]]; // B：开口边
+    corners[2] = temp[chosen.idx[2]]; // C：闭口边
+    corners[3] = temp[chosen.idx[3]]; // D：闭口边
 }
 
 bool PsdSlotFusion::PointInQuad(const Point2f& point, const SlotCorners& corners) {
