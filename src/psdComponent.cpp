@@ -231,6 +231,10 @@ void psdComponent::Timer50_1TimerTask() {
                                    parkable_slot, pnc_status,
                                    slot_list, slot_stopper, target_slot_label
                                 );
+    
+    publishDataToapapsdparking_slot_list(&slot_list);
+    publishDataToapapsdparking_slot_stopper(&slot_stopper);
+    publishDataToapapsdtarget_slot_label(&target_slot_label);
 }
 
 void psdComponent::UicSelectSlotTriggerCallback(const uint8_t* data, uint32_t length){
@@ -265,6 +269,18 @@ void psdComponent::publishDataToapapsdparking_slot_stopper(apa::psd::ParkingSlot
 
 void psdComponent::publishDataToapapsdparking_slot_list(apa::psd::ParkingSlotList* sendData){
     publishDataToCom("/apa/psd/parking_slot_list", sendData);
+
+    LOG_INFO() << "Publish /apa/psd/parking_slot_list(sequence, slot_num): "
+               << sendData->header.sequence << ", "
+               << sendData->slot_num;
+    for (auto item : sendData->slots) {
+        if (item.slot_id == 1006) {
+            LOG_INFO() << "A(" << item.slot_corners[0].x << ", " << item.slot_corners[0].y << "), "
+                       << "B(" << item.slot_corners[1].x << ", " << item.slot_corners[1].y << "), "
+                       << "C(" << item.slot_corners[2].x << ", " << item.slot_corners[2].y << "), "
+                       << "D(" << item.slot_corners[3].x << ", " << item.slot_corners[3].y << "). ";
+        }
+    }
 }
 
 void psdComponent::publishDataToapapsdtarget_slot_label(apa::psd::TargetSlotLabel* sendData){
