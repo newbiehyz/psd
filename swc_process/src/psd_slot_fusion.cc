@@ -186,7 +186,7 @@ void PsdSlotFusion::ConvertMapInfo(const PsdFusionInput& input, InternalSlotList
             float dy = wy - pose_y_m;
             float bx = dx * cos_theta + dy * sin_theta;
             float by = -dx * sin_theta + dy * cos_theta;
-            slot.localCorners[j] = Point2f(-by, bx);
+            slot.localCorners[j] = Point2f(bx, by);
         }
         AdjustCornerOrder(slot.localCorners);
 
