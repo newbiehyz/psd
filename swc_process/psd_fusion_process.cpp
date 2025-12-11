@@ -92,6 +92,64 @@ bool PsdFusionProcess::RunTask(const apa::status::Output2ALL& state_machine,
       output_slot_stopper,
       output_target_label);
 
+  //=========================================================================
+  // Step 4: Print final outputs after ConvertAllOutputs
+  //=========================================================================
+  LOG_DEBUG() << "[FINAL OUTPUT - ParkingSlotList]"
+              << " header.flag=" << output_slot_list.header.flag
+              << ", header.version=" << output_slot_list.header.version
+              << ", header.pub_timestamp_us=" << output_slot_list.header.pub_timestamp_us
+              << ", header.sequence=" << output_slot_list.header.sequence
+              << ", slot_num=" << output_slot_list.slot_num << "\n";
+
+  for (size_t i = 0; i < output_slot_list.slot_num && i < 50; ++i) {
+      const auto& slot = output_slot_list.slots[i];
+      LOG_DEBUG() << "[FINAL OUTPUT - ParkingSlotList] slots[" << i << "]:"
+                  << " slot_id=" << slot.slot_id
+                  << ", slot_display_id=" << slot.slot_display_id
+                  << ", slot_display_status=" << static_cast<int>(slot.slot_display_status)
+                  << ", slot_corners[0]=(" << slot.slot_corners[0].x << "," << slot.slot_corners[0].y << "," << slot.slot_corners[0].z << ")"
+                  << ", slot_corners[1]=(" << slot.slot_corners[1].x << "," << slot.slot_corners[1].y << "," << slot.slot_corners[1].z << ")"
+                  << ", slot_corners[2]=(" << slot.slot_corners[2].x << "," << slot.slot_corners[2].y << "," << slot.slot_corners[2].z << ")"
+                  << ", slot_corners[3]=(" << slot.slot_corners[3].x << "," << slot.slot_corners[3].y << "," << slot.slot_corners[3].z << ")"
+                  << ", slot_entry_length=" << slot.slot_entry_length
+                  << ", slot_nonentry_length=" << slot.slot_nonentry_length
+                  << ", slot_type=" << static_cast<int>(slot.slot_type)
+                  << ", slot_surface_type=" << static_cast<int>(slot.slot_surface_type)
+                  << ", slot_bottom_type=" << static_cast<int>(slot.slot_bottom_type)
+                  << ", slot_obstacle_type=" << static_cast<int>(slot.slot_obstacle_type)
+                  << ", slot_obstacle_location=" << static_cast<int>(slot.slot_obstacle_location)
+                  << ", slot_stopper_distance=" << slot.slot_stopper_distance
+                  << ", slot_confidence=" << slot.slot_confidence
+                  << ", slot_source=" << static_cast<int>(slot.slot_source)
+                  << ", slot_occupied=" << slot.slot_occupied
+                  << ", slot_selected=" << slot.slot_selected
+                  << ", park_in_type=" << static_cast<int>(slot.park_in_type)
+                  << ", ussslot_oppositespace=" << slot.ussslot_oppositespace
+                  << ", ussslot_transversespace=" << slot.ussslot_transversespace << "\n";
+  }
+
+  LOG_DEBUG() << "[FINAL OUTPUT - ParkingSlotStopper]"
+              << " header.flag=" << output_slot_stopper.header.flag
+              << ", header.version=" << output_slot_stopper.header.version
+              << ", header.pub_timestamp_us=" << output_slot_stopper.header.pub_timestamp_us
+              << ", header.sequence=" << output_slot_stopper.header.sequence
+              << ", apc_LimitBarX[0]=" << output_slot_stopper.apc_LimitBarX[0]
+              << ", apc_LimitBarX[1]=" << output_slot_stopper.apc_LimitBarX[1]
+              << ", apc_LimitBarY[0]=" << output_slot_stopper.apc_LimitBarY[0]
+              << ", apc_LimitBarY[1]=" << output_slot_stopper.apc_LimitBarY[1]
+              << ", apc_LimitBarYaw[0]=" << output_slot_stopper.apc_LimitBarYaw[0]
+              << ", apc_LimitBarYaw[1]=" << output_slot_stopper.apc_LimitBarYaw[1]
+              << ", apc_LimitBarID[0]=" << output_slot_stopper.apc_LimitBarID[0]
+              << ", apc_LimitBarID[1]=" << output_slot_stopper.apc_LimitBarID[1] << "\n";
+
+  LOG_DEBUG() << "[FINAL OUTPUT - TargetSlotLabel]"
+              << " header.flag=" << output_target_label.header.flag
+              << ", header.version=" << output_target_label.header.version
+              << ", header.pub_timestamp_us=" << output_target_label.header.pub_timestamp_us
+              << ", header.sequence=" << output_target_label.header.sequence
+              << ", targetSlotID=" << output_target_label.targetSlotID << "\n";
+
 
   auto end_time = std::chrono::steady_clock::now();
   auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(

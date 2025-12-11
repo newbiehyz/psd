@@ -50,14 +50,20 @@ void psdComponent::Timer50_1TimerTask() {
         const std::vector<uint8_t>* cached_data = nullptr;
         getLatestCacheData("/apa/status/output_ALL", cached_data);
         if (cached_data != nullptr && cached_data->size() > 0) {
-        status.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
-        LOG_DEBUG() << "[/apa/status/output_ALL: (pub_timestamp, sequence, apa_status)] = (" 
-                    << status.header.pub_timestamp_us << ", " 
-                    << status.header.sequence << ", "
-                    << static_cast<int>(status.apaStatusReq) << ", "
-                    << static_cast<int>(status.DrivingOrParking1) << ", "
-                    << static_cast<int>(status.apaStartParkingReq)
-                    << ")";
+            status.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
+            LOG_DEBUG() << "[RAW INPUT - /apa/status/output_ALL]"
+                        << " header.flag=" << status.header.flag
+                        << ", header.version=" << status.header.version
+                        << ", header.pub_timestamp_us=" << status.header.pub_timestamp_us
+                        << ", header.sequence=" << status.header.sequence
+                        << ", apaStatusReq=" << static_cast<int>(status.apaStatusReq)
+                        << ", hppStatusReq=" << static_cast<int>(status.hppStatusReq)
+                        << ", DrivingOrParking1=" << static_cast<int>(status.DrivingOrParking1)
+                        << ", DrivingOrParking2=" << static_cast<int>(status.DrivingOrParking2)
+                        << ", apaStartParkingReq=" << static_cast<int>(status.apaStartParkingReq)
+                        << ", apaSrchInterupt=" << static_cast<int>(status.apaSrchInterupt)
+                        << ", Reserved1=" << static_cast<int>(status.Reserved1)
+                        << ", Reserved2=" << static_cast<int>(status.Reserved2);
         }
     }
 
@@ -65,15 +71,24 @@ void psdComponent::Timer50_1TimerTask() {
         const std::vector<uint8_t>* cached_data = nullptr;
         getLatestCacheData("/apa/loc/vehicle_pose", cached_data);
         if (cached_data != nullptr && cached_data->size() > 0) {
-        vehicle_pose.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
-        LOG_DEBUG() << "[/apa/loc/vehicle_pose: (pub_timestamp, sequence, x, y, yaw, timestamp_us)] = (" 
-                    << vehicle_pose.header.pub_timestamp_us << ", " 
-                    << vehicle_pose.header.sequence << ", "
-                    << vehicle_pose.pos_x << ", "
-                    << vehicle_pose.pos_y << ", "
-                    << vehicle_pose.yaw << ", "
-                    << vehicle_pose.timeStamp_us
-                    << ")";
+            vehicle_pose.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
+            LOG_DEBUG() << "[RAW INPUT - /apa/loc/vehicle_pose]"
+                        << " header.flag=" << vehicle_pose.header.flag
+                        << ", header.version=" << vehicle_pose.header.version
+                        << ", header.pub_timestamp_us=" << vehicle_pose.header.pub_timestamp_us
+                        << ", header.sequence=" << vehicle_pose.header.sequence
+                        << ", loc_status=" << static_cast<int>(vehicle_pose.loc_status)
+                        << ", pos_x=" << vehicle_pose.pos_x
+                        << ", pos_y=" << vehicle_pose.pos_y
+                        << ", pos_z=" << vehicle_pose.pos_z
+                        << ", quaternion_qx=" << vehicle_pose.quaternion_qx
+                        << ", quaternion_qy=" << vehicle_pose.quaternion_qy
+                        << ", quaternion_qz=" << vehicle_pose.quaternion_qz
+                        << ", quaternion_qw=" << vehicle_pose.quaternion_qw
+                        << ", roll=" << vehicle_pose.roll
+                        << ", pitch=" << vehicle_pose.pitch
+                        << ", yaw=" << vehicle_pose.yaw
+                        << ", timeStamp_us=" << vehicle_pose.timeStamp_us;
         }
     }
 
@@ -81,13 +96,28 @@ void psdComponent::Timer50_1TimerTask() {
         const std::vector<uint8_t>* cached_data = nullptr;
         getLatestCacheData("/apa/loc/map_info", cached_data);
         if (cached_data != nullptr && cached_data->size() > 0) {
-        map_info.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
-        LOG_DEBUG() << "[/apa/loc/map_info: (pub_timestamp, sequence, mapId, ParkingSlot_num)] = (" 
-                    << map_info.header.pub_timestamp_us << ", " 
-                    << map_info.header.sequence << ", "
-                    << map_info.mapId << ", "
-                    << map_info.ParkingSlot.size() << ", "
-                    << ")";
+            map_info.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
+            LOG_DEBUG() << "[RAW INPUT - /apa/loc/map_info]"
+                        << " header.flag=" << map_info.header.flag
+                        << ", header.version=" << map_info.header.version
+                        << ", header.pub_timestamp_us=" << map_info.header.pub_timestamp_us
+                        << ", header.sequence=" << map_info.header.sequence
+                        << ", timeStamp=" << map_info.timeStamp
+                        << ", mapId=" << map_info.mapId
+                        << ", ParkingSlot.size=" << map_info.ParkingSlot.size();
+            
+            for (size_t i = 0; i < map_info.ParkingSlot.size(); ++i) {
+                const auto& slot = map_info.ParkingSlot[i];
+                LOG_DEBUG() << "[RAW INPUT - /apa/loc/map_info] ParkingSlot[" << i << "]:"
+                            << " id=" << slot.id
+                            << ", psType=" << slot.psType
+                            << ", width=" << slot.width
+                            << ", length=" << slot.length
+                            << ", center=(" << slot.center.x << "," << slot.center.y << "," << slot.center.z << ")"
+                            << ", wideDirection=(" << slot.wideDirection.x << "," << slot.wideDirection.y << "," << slot.wideDirection.z << ")"
+                            << ", longDirection=(" << slot.longDirection.x << "," << slot.longDirection.y << "," << slot.longDirection.z << ")"
+                            << ", isOccupancy=" << slot.isOccupancy;
+            }
         }
     }
 
@@ -95,9 +125,21 @@ void psdComponent::Timer50_1TimerTask() {
         const std::vector<uint8_t>* cached_data = nullptr;
         getLatestCacheData("/apa/uss/uss_parking_slot_list", cached_data);
         if (cached_data != nullptr && cached_data->size() > 0) {
-        uss_slot_list.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
-        LOG_DEBUG() << "[/apa/uss/uss_parking_slot_list: received, slot0_timestamp = " 
-                    << uss_slot_list.uss_slot[0].timestamp << "]";
+            uss_slot_list.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
+
+            for (size_t i = 0; i < 4; ++i) {
+                const auto& slot = uss_slot_list.uss_slot[i];
+                LOG_DEBUG() << "[RAW INPUT - /apa/uss/uss_parking_slot_list] uss_slot[" << i << "]:"
+                            << " point_ABCD[0]=(" << slot.point_ABCD[0].x << "," << slot.point_ABCD[0].y << ")"
+                            << ", point_ABCD[1]=(" << slot.point_ABCD[1].x << "," << slot.point_ABCD[1].y << ")"
+                            << ", point_ABCD[2]=(" << slot.point_ABCD[2].x << "," << slot.point_ABCD[2].y << ")"
+                            << ", point_ABCD[3]=(" << slot.point_ABCD[3].x << "," << slot.point_ABCD[3].y << ")"
+                            << ", bottom_type=" << static_cast<int>(slot.bottom_type)
+                            << ", obs_status=" << static_cast<int>(slot.obs_status)
+                            << ", leftside_obstacle_position=" << slot.leftside_obstacle_position
+                            << ", rightside_obstacle_position=" << slot.rightside_obstacle_position
+                            << ", timestamp=" << slot.timestamp;
+            }
         }
     }
 
@@ -105,13 +147,14 @@ void psdComponent::Timer50_1TimerTask() {
         const std::vector<uint8_t>* cached_data = nullptr;
         getLatestCacheData("/apa/fus/gridmap", cached_data);
         if (cached_data != nullptr && cached_data->size() > 0) {
-        gridmap.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
-        LOG_DEBUG() << "[/apa/fus/gridmap: (pub_timestamp, sequence, EmapGrid_TimeStamp, eMapWorkMode)] = (" 
-                    << gridmap.header.pub_timestamp_us << ", " 
-                    << gridmap.header.sequence << ", "
-                    << gridmap.EmapGrid_TimeStamp << ", "
-                    << static_cast<int>(gridmap.eMapWorkMode)
-                    << ")";
+            gridmap.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
+            LOG_DEBUG() << "[RAW INPUT - /apa/fus/gridmap]"
+                        << " header.flag=" << gridmap.header.flag
+                        << ", header.version=" << gridmap.header.version
+                        << ", header.pub_timestamp_us=" << gridmap.header.pub_timestamp_us
+                        << ", header.sequence=" << gridmap.header.sequence
+                        << ", EmapGrid_TimeStamp=" << gridmap.EmapGrid_TimeStamp
+                        << ", eMapWorkMode=" << static_cast<int>(gridmap.eMapWorkMode);
         }
     }
 
@@ -119,13 +162,31 @@ void psdComponent::Timer50_1TimerTask() {
         const std::vector<uint8_t>* cached_data = nullptr;
         getLatestCacheData("/apa/fus/obs", cached_data);
         if (cached_data != nullptr && !cached_data->empty()) {
-        emap_obs.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
-        LOG_DEBUG() << "[/apa/fus/obs: (pub_timestamp, sequence, first_obs_ID, first_obs_Type)] = (" 
-                    << emap_obs.header.pub_timestamp_us << ", " 
-                    << emap_obs.header.sequence << ", "
-                    << emap_obs.pkEmapObs[0].obsID << ", "
-                    << static_cast<int>(emap_obs.pkEmapObs[0].obsTyp)
-                    << ")";
+            emap_obs.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
+            LOG_DEBUG() << "[RAW INPUT - /apa/fus/obs]"
+                        << " header.flag=" << emap_obs.header.flag
+                        << ", header.version=" << emap_obs.header.version
+                        << ", header.pub_timestamp_us=" << emap_obs.header.pub_timestamp_us
+                        << ", header.sequence=" << emap_obs.header.sequence;
+            
+            for (size_t i = 0; i < 50; ++i) {
+                const auto& obs = emap_obs.pkEmapObs[i];
+                if (obs.obsTyp != apa::fus::EmapObsTyp::OBS_NULL) {
+                    LOG_DEBUG() << "[RAW INPUT - /apa/fus/obs] pkEmapObs[" << i << "]:"
+                                << " Frame_Index=" << obs.Frame_Index
+                                << ", Fail_Safe=" << static_cast<int>(obs.Fail_Safe)
+                                << ", obsID=" << obs.obsID
+                                << ", obsTyp=" << static_cast<int>(obs.obsTyp)
+                                << ", obsCenter=(" << obs.obsCenter.x << "," << obs.obsCenter.y << "," << obs.obsCenter.z << ")"
+                                << ", age=" << obs.age
+                                << ", obsDirection=(" << obs.obsDirection.x << "," << obs.obsDirection.y << "," << obs.obsDirection.z << ")"
+                                << ", obsBdTyp=" << static_cast<int>(obs.obsBdTyp)
+                                << ", obsConf=" << static_cast<int>(obs.obsConf)
+                                << ", obsMotionInfo.isValid=" << obs.obsMotionInfo.isValid
+                                << ", obsTrajectory.motionStatus=" << static_cast<int>(obs.obsTrajectory.motionStatus)
+                                << ", obsTrajectory.confidence=" << obs.obsTrajectory.confidence;
+                }
+            }
         }
     }
 
@@ -133,15 +194,17 @@ void psdComponent::Timer50_1TimerTask() {
         const std::vector<uint8_t>* cached_data = nullptr;
         getLatestCacheData("/apa/planning/parkable_slot", cached_data);
         if (cached_data != nullptr && !cached_data->empty()) {
-        parkable_slot.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
-        LOG_DEBUG() << "[/apa/planning/parkable_slot: (pub_timestamp, sequence, frameID, validSlotNum, SlotID, slotParkable)] = (" 
-                    << parkable_slot.header.pub_timestamp_us << ", " 
-                    << parkable_slot.header.sequence << ", "
-                    << parkable_slot.frameID << ", "
-                    << static_cast<int>(parkable_slot.validSlotNum) << ", "
-                    << parkable_slot.emapSrchSlotsRes.SlotID << ", "
-                    << static_cast<int>(parkable_slot.emapSrchSlotsRes.slotParkable)
-                    << ")";
+            parkable_slot.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
+            LOG_DEBUG() << "[RAW INPUT - /apa/planning/parkable_slot]"
+                        << " header.flag=" << parkable_slot.header.flag
+                        << ", header.version=" << parkable_slot.header.version
+                        << ", header.pub_timestamp_us=" << parkable_slot.header.pub_timestamp_us
+                        << ", header.sequence=" << parkable_slot.header.sequence
+                        << ", frameID=" << parkable_slot.frameID
+                        << ", validSlotNum=" << static_cast<int>(parkable_slot.validSlotNum)
+                        << ", emapSrchSlotsRes.SlotID=" << parkable_slot.emapSrchSlotsRes.SlotID
+                        << ", emapSrchSlotsRes.slotParkable=" << static_cast<int>(parkable_slot.emapSrchSlotsRes.slotParkable)
+                        << ", emapSrchSlotsRes.slotScore=" << static_cast<int>(parkable_slot.emapSrchSlotsRes.slotScore);
         }
     }
 
@@ -150,12 +213,13 @@ void psdComponent::Timer50_1TimerTask() {
         getLatestCacheData("/apa/planning/pnc_status", cached_data);
         if (cached_data != nullptr && !cached_data->empty()) {
             pnc_status.deserialize_from_memory(cached_data->data(), cached_data->data() + cached_data->size());
-            LOG_DEBUG() << "[/apa/planning/pnc_status: (pub_timestamp, sequence, soltWidthStatus, PncStatus)] = (" 
-                        << pnc_status.header.pub_timestamp_us << ", " 
-                        << pnc_status.header.sequence << ", "
-                        << static_cast<int>(pnc_status.soltWidthStatus) << ", "
-                        << static_cast<int>(pnc_status.PncStatus)
-                        << ")";
+            LOG_DEBUG() << "[RAW INPUT - /apa/planning/pnc_status]"
+                        << " header.flag=" << pnc_status.header.flag
+                        << ", header.version=" << pnc_status.header.version
+                        << ", header.pub_timestamp_us=" << pnc_status.header.pub_timestamp_us
+                        << ", header.sequence=" << pnc_status.header.sequence
+                        << ", soltWidthStatus=" << static_cast<int>(pnc_status.soltWidthStatus)
+                        << ", PncStatus=" << static_cast<int>(pnc_status.PncStatus);
         }
     }
 
