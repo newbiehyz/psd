@@ -4,6 +4,7 @@
 #include <cstring>
 #include <limits>
 #include <vector>
+#include "log.h"
 
 PsdSlotFusion::PsdSlotFusion() { Reset(); }
 
@@ -33,8 +34,14 @@ void PsdSlotFusion::Reset() {
 
 void PsdSlotFusion::Process(const PsdFusionInput& input,
                             PsdFusionOutput& output) {
+  LOG_DEBUG() << "PsdSlotFusion::Process - Start processing\n";
+
   // Update vehicle state
   uint8_t current_status = input.stateMachine.apaStatusReq;
+
+  LOG_DEBUG() << "PsdSlotFusion::Process - apaStatus=" << static_cast<int>(current_status)
+              << ", is_park_out_mode=" << is_park_out_mode_
+              << ", is_vehicle_still=" << is_vehicle_still_ << "\n";
 
   // Detect park-out mode
   if (current_status == static_cast<uint8_t>(ApaStatus::ParkOut)) {
@@ -67,25 +74,35 @@ void PsdSlotFusion::Process(const PsdFusionInput& input,
   slot_list.clear();
 
   // Step 1: Clear data based on APA status
+  LOG_DEBUG() << "PsdSlotFusion::Process - Step 1: ResetByStatus\n";
   ResetByStatus(input, slot_list);
 
   // Step 2: Convert mapinfo slots to internal format
+  LOG_DEBUG() << "PsdSlotFusion::Process - Step 2: ConvertMapInfo\n";
   ConvertMapInfo(input, slot_list);
+  LOG_DEBUG() << "  After ConvertMapInfo: slot_list.count=" << slot_list.count << "\n";
 
   // // Step 3: Convert and merge USS slots（ TODO: not available, and waiting
   // for input) ConvertUssSlots(input, slot_list);
 
   // Step 4: Process obstacles
+  LOG_DEBUG() << "PsdSlotFusion::Process - Step 4: ProcObstacles\n";
   ProcObstacles(input, slot_list);
 
   // Step 5: Select target slot
+  LOG_DEBUG() << "PsdSlotFusion::Process - Step 5: ProcSelectTargetSlot\n";
   ProcSelectTargetSlot(input, slot_list);
+  LOG_DEBUG() << "  After ProcSelectTargetSlot: targetSlotId=" << slot_list.targetSlotId << "\n";
 
   // Step 6: Update display status
+  LOG_DEBUG() << "PsdSlotFusion::Process - Step 6: ProcUpdateDisplayStatus\n";
   ProcUpdateDisplayStatus(input, slot_list);
 
   // Step 7: Convert to output format
+  LOG_DEBUG() << "PsdSlotFusion::Process - Step 7: ConvertToOutput\n";
   ConvertToOutput(input, slot_list, output);
+
+  LOG_DEBUG() << "PsdSlotFusion::Process - Completed, output slotNum=" << output.slotList.slotNum << "\n";
 
   // Update status tracking
   last_apa_status_ = current_status;
@@ -99,6 +116,9 @@ void PsdSlotFusion::Process(const PsdFusionInput& input,
 void PsdSlotFusion::UpdateSelectSlot(const SelectSlotInput& select_slot) {
   if (select_slot.isValid) {
     hmi_selected_id_ = select_slot.slotId;
+    LOG_DEBUG() << "UpdateSelectSlot: HMI selected slot id=" << hmi_selected_id_ << "\n";
+  } else {
+    LOG_DEBUG() << "UpdateSelectSlot: Invalid selection\n";
   }
 }
 
@@ -116,6 +136,7 @@ void PsdSlotFusion::ResetByStatus(const PsdFusionInput& input,
       status == static_cast<uint8_t>(ApaStatus::Standby) ||
       status == static_cast<uint8_t>(ApaStatus::Finished) ||
       status == static_cast<uint8_t>(ApaStatus::Error)) {
+    LOG_DEBUG() << "ResetByStatus: Clearing all data (status=" << static_cast<int>(status) << ")\n";
     slot_list.clear();
     hmi_temp_id_ = 0;
     vcu_selected_id_ = 0;
@@ -128,6 +149,7 @@ void PsdSlotFusion::ResetByStatus(const PsdFusionInput& input,
   // Clear once on first entry to Search state
   else if (status == static_cast<uint8_t>(ApaStatus::Search) &&
            !has_cleared_for_search_) {
+    LOG_DEBUG() << "ResetByStatus: Clearing for Search mode\n";
     slot_list.clear();
     has_cleared_for_search_ = true;
   }
@@ -135,6 +157,8 @@ void PsdSlotFusion::ResetByStatus(const PsdFusionInput& input,
 
 void PsdSlotFusion::ConvertMapInfo(const PsdFusionInput& input,
                                    InternalSlotList& slot_list) {
+  LOG_DEBUG() << "ConvertMapInfo: parkingSlotCount=" << input.mapInfo.parkingSlotCount << "\n";
+
   const auto& pose = input.vehiclePose;
   float theta = pose.yaw * static_cast<float>(M_PI) / 180.0f;
   float cos_theta = std::cos(theta);
@@ -149,6 +173,13 @@ void PsdSlotFusion::ConvertMapInfo(const PsdFusionInput& input,
     slot.displayId = slot.slotId;
     slot.displayStatus = map_slot.isOccupied ? SlotDisplayStatus::Occupied
                                              : SlotDisplayStatus::Available;
+
+    if (i < 5) {  // 只打印前5个车位
+      LOG_DEBUG() << "  Converting map slot[" << i << "]: id=" << slot.slotId
+                  << ", type=" << map_slot.psType
+                  << ", size=" << map_slot.width << "x" << map_slot.length
+                  << ", occupied=" << map_slot.isOccupied << "\n";
+    }
 
     // Calculate world and local corners
     Point3f c = map_slot.center;
@@ -440,10 +471,16 @@ void PsdSlotFusion::ProcSelectTargetSlot(const PsdFusionInput& input,
                                          InternalSlotList& slot_list) {
   uint8_t status = input.stateMachine.apaStatusReq;
 
+  LOG_DEBUG() << "ProcSelectTargetSlot: hmi_selected_id=" << hmi_selected_id_
+              << ", vcu_selected_id=" << vcu_selected_id_
+              << ", hmi_temp_id=" << hmi_temp_id_
+              << ", slot_list.count=" << slot_list.count << "\n";
+
   // Handle HMI selection caching
   if (hmi_selected_id_ != 0) {
     hmi_temp_id_ = hmi_selected_id_;
     hmi_selected_id_ = 0;  // Clear after caching
+    LOG_DEBUG() << "  Cached HMI selection: hmi_temp_id=" << hmi_temp_id_ << "\n";
   }
 
   // Determine final selection (HMI/VCU)
@@ -461,6 +498,8 @@ void PsdSlotFusion::ProcSelectTargetSlot(const PsdFusionInput& input,
   } else {
     final_selected_id_ = 0;  // No user selection
   }
+
+  LOG_DEBUG() << "  Final selected id: " << final_selected_id_ << "\n";
 
   //=========================================================================
   // 推荐车位逻辑
@@ -524,12 +563,20 @@ void PsdSlotFusion::ProcSelectTargetSlot(const PsdFusionInput& input,
               return a.distance < b.distance;
             });
 
+  LOG_DEBUG() << "  Found " << available_slots.size() << " available slots\n";
+  if (!available_slots.empty() && available_slots.size() <= 3) {
+    for (const auto& sd : available_slots) {
+      LOG_DEBUG() << "    Slot id=" << sd.slotId << ", distance=" << sd.distance << "\n";
+    }
+  }
+
   // Step 3: 根据状态决定是否使用推荐
   // 状态1：没有点选ID且静止 -> 使用推荐ID
   if (final_selected_id_ == 0 && is_vehicle_still_) {
     if (!available_slots.empty()) {
       // 最近的车位作为推荐车位
       recommended_id_ = available_slots[0].slotId;
+      LOG_DEBUG() << "  Status 1: No selection + still -> recommend slot id=" << recommended_id_ << "\n";
       size_t rec_idx = available_slots[0].index;
       slot_list.slots[rec_idx].isRecommended = true;
       slot_list.slots[rec_idx].displayStatus = SlotDisplayStatus::Recommended;
@@ -571,6 +618,9 @@ void PsdSlotFusion::ProcSelectTargetSlot(const PsdFusionInput& input,
   slot_list.selectedSlotId = final_selected_id_;
   slot_list.recommendedSlotId = recommended_id_;
 
+  LOG_DEBUG() << "  Updated slot_list: selectedSlotId=" << slot_list.selectedSlotId
+              << ", recommendedSlotId=" << slot_list.recommendedSlotId << "\n";
+
   // 标记选中的车位
   for (size_t i = 0; i < slot_list.count; ++i) {
     auto& slot = slot_list.slots[i];
@@ -579,6 +629,7 @@ void PsdSlotFusion::ProcSelectTargetSlot(const PsdFusionInput& input,
     if (slot.slotId == final_selected_id_ &&
         final_selected_id_ != recommended_id_) {
       slot.isSelected = true;
+      LOG_DEBUG() << "  Marked slot id=" << slot.slotId << " as Selected\n";
       if (slot.occupancy != SlotOccupancyStatus::Occupied &&
           slot.occupancy != SlotOccupancyStatus::Locked) {
         slot.displayStatus = SlotDisplayStatus::Selected;
@@ -587,6 +638,7 @@ void PsdSlotFusion::ProcSelectTargetSlot(const PsdFusionInput& input,
     // 如果是推荐车位（且被选中）
     else if (slot.slotId == recommended_id_ && recommended_id_ != 0) {
       slot.isRecommended = true;
+      LOG_DEBUG() << "  Marked slot id=" << slot.slotId << " as Recommended\n";
       if (slot.occupancy != SlotOccupancyStatus::Occupied &&
           slot.occupancy != SlotOccupancyStatus::Locked) {
         slot.displayStatus = SlotDisplayStatus::Recommended;
@@ -599,6 +651,7 @@ void PsdSlotFusion::ProcSelectTargetSlot(const PsdFusionInput& input,
         slot.slotId == final_selected_id_ && final_selected_id_ != 0) {
       slot.isTargetSlot = true;
       slot_list.targetSlotId = slot.slotId;
+      LOG_DEBUG() << "  Marked slot id=" << slot.slotId << " as TargetSlot (status=" << static_cast<int>(status) << ")\n";
 
       // Save target slot for guidance phase
       if (status == static_cast<uint8_t>(ApaStatus::Enabled) &&
@@ -673,6 +726,9 @@ void PsdSlotFusion::ProcUpdateDisplayStatus(const PsdFusionInput& input,
 void PsdSlotFusion::ConvertToOutput(const PsdFusionInput& input,
                                     const InternalSlotList& slot_list,
                                     PsdFusionOutput& output) {
+  LOG_DEBUG() << "ConvertToOutput: slot_list.count=" << slot_list.count
+              << ", targetSlotId=" << slot_list.targetSlotId << "\n";
+
   output.clear();
 
   // Set header
@@ -681,6 +737,7 @@ void PsdSlotFusion::ConvertToOutput(const PsdFusionInput& input,
       static_cast<uint16_t>(input.currentTimestamp / 1000);
 
   // Convert each slot
+  int released_count = 0;
   for (size_t i = 0; i < slot_list.count && i < Limits::kMaxSlotCount; ++i) {
     const auto& src = slot_list.slots[i];
 
@@ -688,6 +745,7 @@ void PsdSlotFusion::ConvertToOutput(const PsdFusionInput& input,
       continue;  // Skip slots that shouldn't be released
     }
 
+    released_count++;
     ParkingSlotOutput dst;
     dst.slotId = src.slotId;
     dst.slotDisplayId = src.displayId;
@@ -718,10 +776,14 @@ void PsdSlotFusion::ConvertToOutput(const PsdFusionInput& input,
     output.slotList.addSlot(dst);
   }
 
+  LOG_DEBUG() << "ConvertToOutput: Released " << released_count << " slots to output\n";
+
   // Set target slot label
   output.targetLabel.header.pubTimestampUs = input.currentTimestamp;
   output.targetLabel.targetSlotId =
       static_cast<uint16_t>(slot_list.targetSlotId);
+
+  LOG_DEBUG() << "ConvertToOutput: targetSlotId=" << output.targetLabel.targetSlotId << "\n";
 
   // Set stopper info for target slot
   output.slotStopper.header.pubTimestampUs = input.currentTimestamp;
@@ -730,6 +792,7 @@ void PsdSlotFusion::ConvertToOutput(const PsdFusionInput& input,
 
   const InternalSlot* target = slot_list.findSlotById(slot_list.targetSlotId);
   if (target && target->hasStopperInSlot) {
+    LOG_DEBUG() << "ConvertToOutput: Target slot has stopper\n";
     for (size_t i = 0; i < Limits::kMaxStopperCount; ++i) {
       output.slotStopper.limitBarX[i] =
           static_cast<int16_t>(target->stopperPoints[i].x);

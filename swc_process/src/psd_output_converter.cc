@@ -1,9 +1,12 @@
 #include "psd_output_converter.h"
 
 #include "apa/psd.h"
+#include "log.h"
 
 void PsdOutputConverter::ConvertSlotList(const ParkingSlotListOutput& input,
                                          apa::psd::ParkingSlotList& output) {
+  LOG_DEBUG() << "ConvertSlotList: slotNum=" << input.slotNum << "\n";
+
   output.header.flag = input.header.flag;
   output.header.version = input.header.version;
   output.header.sequence = input.header.sequence;
@@ -18,6 +21,14 @@ void PsdOutputConverter::ConvertSlotList(const ParkingSlotListOutput& input,
     dst.slot_id = src.slotId;
     dst.slot_display_id = src.slotDisplayId;
     dst.slot_display_status = src.slotDisplayStatus;
+
+    if (i < 10) {  // 只打印前10个车位的详细信息
+      LOG_DEBUG() << "  Slot[" << i << "]: id=" << dst.slot_id
+                  << ", displayId=" << dst.slot_display_id
+                  << ", displayStatus=" << static_cast<int>(dst.slot_display_status)
+                  << ", type=" << static_cast<int>(src.slotType)
+                  << ", selected=" << src.slotSelected << "\n";
+    }
 
     for (int j = 0; j < 4; ++j) {
       dst.slot_corners[j].x = src.slotCorners[j].x;
@@ -67,6 +78,8 @@ void PsdOutputConverter::ConvertTargetLabel(const TargetSlotLabelOutput& input,
   output.header.pub_timestamp_us = input.header.pubTimestampUs;
 
   output.targetSlotID = input.targetSlotId;
+
+  LOG_DEBUG() << "ConvertTargetLabel: targetSlotId=" << output.targetSlotID << "\n";
 }
 
 void PsdOutputConverter::ConvertAllOutputs(

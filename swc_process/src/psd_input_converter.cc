@@ -1,4 +1,5 @@
 #include "psd_input_converter.h"
+#include "log.h"
 
 void PsdInputConverter::ConvertHeader(const apa::common::Header& input,
                                       Header& internal_input) {
@@ -69,6 +70,9 @@ void PsdInputConverter::ConvertMapInfo(const apa::loc::MapInfo& input,
   internal_input.timestamp = input.timeStamp;
   internal_input.mapId = input.mapId;
 
+  LOG_DEBUG() << "ConvertMapInfo: mapId=" << input.mapId 
+              << ", slot count=" << input.ParkingSlot.size() << "\n";
+
   // Convert parking slots
   internal_input.parkingSlotCount = 0;
   for (size_t i = 0; i < input.ParkingSlot.size() && i < Limits::kMaxSlotCount;
@@ -85,8 +89,16 @@ void PsdInputConverter::ConvertMapInfo(const apa::loc::MapInfo& input,
     dst.longDirection = ConvertPoint3f(src.longDirection);
     dst.isOccupied = src.isOccupancy;
 
+    LOG_DEBUG() << "  Slot[" << i << "]: id=" << dst.id 
+                << ", type=" << dst.psType
+                << ", size=" << dst.width << "x" << dst.length
+                << ", center=(" << dst.center.x << "," << dst.center.y << "," << dst.center.z << ")"
+                << ", occupied=" << dst.isOccupied << "\n";
+
     ++internal_input.parkingSlotCount;
   }
+
+  LOG_DEBUG() << "ConvertMapInfo: converted " << internal_input.parkingSlotCount << " slots\n";
 }
 
 //-----------------------------------------------------------------------------
@@ -147,6 +159,9 @@ void PsdInputConverter::ConvertObstacles(const apa::fus::PkEmapObs& input,
                                          ObstacleListInput& internal_input) {
   ConvertHeader(input.header, internal_input.header);
 
+  LOG_DEBUG() << "ConvertObstacles: processing obstacle list\n";
+
+  int valid_obs_count = 0;
   for (size_t i = 0; i < Limits::kMaxObstacleCount; ++i) {
     const auto& src = input.pkEmapObs[i];
     auto& dst = internal_input.obstacles[i];
@@ -158,6 +173,16 @@ void PsdInputConverter::ConvertObstacles(const apa::fus::PkEmapObs& input,
     dst.obsCenter = ConvertPoint3f(src.obsCenter);
     dst.age = src.age;
     dst.obsDirection = ConvertPoint3f(src.obsDirection);
+
+    if (dst.obsId > 0) {
+      valid_obs_count++;
+      if (valid_obs_count <= 5) {  // 只打印前5个有效障碍物
+        LOG_DEBUG() << "  Obstacle[" << i << "]: id=" << dst.obsId
+                    << ", type=" << static_cast<int>(dst.obsType)
+                    << ", center=(" << dst.obsCenter.x << "," << dst.obsCenter.y << ")"
+                    << ", age=" << dst.age << "\n";
+      }
+    }
 
     // Motion info
     dst.motionInfo.isValid = src.obsMotionInfo.isValid;
@@ -204,6 +229,8 @@ void PsdInputConverter::ConvertObstacles(const apa::fus::PkEmapObs& input,
     }
     dst.confidence = src.obsConf;
   }
+
+  LOG_DEBUG() << "ConvertObstacles: converted " << valid_obs_count << " valid obstacles\n";
 }
 
 //-----------------------------------------------------------------------------
@@ -222,6 +249,12 @@ void PsdInputConverter::ConvertPlanningDecision(
   internal_input.slotResult.slotParkable =
       static_cast<SlotParkable>(input.emapSrchSlotsRes.slotParkable);
   internal_input.slotResult.slotScore = input.emapSrchSlotsRes.slotScore;
+
+  LOG_DEBUG() << "ConvertPlanningDecision: frameId=" << internal_input.frameId
+              << ", validSlotNum=" << internal_input.validSlotNum
+              << ", slotId=" << internal_input.slotResult.slotId
+              << ", parkable=" << static_cast<int>(internal_input.slotResult.slotParkable)
+              << ", score=" << internal_input.slotResult.slotScore << "\n";
 
   // Parking space
   ConvertHeader(input.parkingSpace.header, internal_input.parkingSpace.header);
